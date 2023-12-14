@@ -39,11 +39,83 @@
 
   Testing the server - run `npm run test-todoServer` command in terminal
  */
-  const express = require('express');
-  const bodyParser = require('body-parser');
-  
-  const app = express();
-  
-  app.use(bodyParser.json());
-  
-  module.exports = app;
+const express = require("express");
+const bodyParser = require("body-parser");
+const fs = require("fs");
+const app = express();
+
+app.use(bodyParser.json());
+
+let storedTodos = require("./todos.json");
+
+function updatedStoredTodos() {
+  fs.writeFile("./todos.json", JSON.stringify(storedTodos), (err) => {
+    if (err) console.log(err);
+  });
+}
+
+app.get("/todos", (req, res) => {
+  res.status(200).send(storedTodos);
+});
+
+app.get("/todos/:id", (req, res) => {
+  const id = req.params.id;
+
+  let result = storedTodos.filter((todo) => {
+    return todo.id == id;
+  });
+
+  result.length > 0
+    ? res.status(200).send(JSON.stringify(result[0]))
+    : res.status(404).send(JSON.stringify(result));
+});
+
+app.post("/todos", (req, res) => {
+  const data = req.body;
+  const id = `${storedTodos.length + 1}`;
+  const newObject = { ...data };
+  newObject["id"] = id;
+  storedTodos.push(newObject);
+  updatedStoredTodos();
+  res.status(201).send(newObject);
+});
+
+app.put("/todos/:id", (req, res) => {
+  const updatedData = req.body;
+  const id = req.params.id;
+  let foundFlag = false;
+  storedTodos = storedTodos.map((val) => {
+    if (val.id == id) {
+      console.log("Here is the data to be updated", val);
+      foundFlag = true;
+      return { id, ...updatedData };
+    } else {
+      return val;
+    }
+  });
+  updatedStoredTodos();
+  foundFlag
+    ? res.status(200).send(`Data updated at ${id}`)
+    : res.status(404).send("ID not found");
+});
+
+app.delete("/todos/:id", (req, res) => {
+  const id = req.params.id;
+  let found = false;
+  storedTodos = storedTodos.filter((val) => {
+    if (val.id == id) {
+      found = true;
+    }
+    return val.id != id;
+  });
+  updatedStoredTodos();
+  found
+    ? res.status(200).send("Deleted success fully")
+    : res.status(404).send("ID not found");
+});
+
+app.use((req, res) => {
+  res.status(404).send("Route not found");
+});
+
+module.exports = app;
